@@ -4,7 +4,6 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-
 class CarStatus(StrEnum):
     available = "available"
     reserve = "reserve"
