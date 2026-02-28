@@ -1,19 +1,5 @@
-# Исправил строку в add_car
-# В целом могу заметить, что в работе с Python лично у меня самая большая проблема - понять логику действий,
-# Пока нет понимания, что я делаю, просто механически набираю код.
-# После написания кода приходится просить ИИ, чтобы подписал комментарий буквально к каждой строке, где расписано, что происходит в этой строке.
-
-# Только-только получилось импортировать pydantic, так тут же накрылся импорт models, хотя models.py лежит в той же папке.
-# Окончательно запутался, что не так с импортом.
-# Спрашивал у нейронки, как поступить, в итоге мы по нескольку раз переустанавливали виртуальное окружение, которое уже есть,
-# заново ставили pydantic, хотя более новая версия ставится без проблем, проверяли расположение файлов (с ним вроде всё окей).
-
-# Если в проекте по SQL я мог просто вписать свой код в имеющися в гите файл, то почему нельзя поступить аналогично в случае с Python?
-# Пришлось скопировать код в вордовский файл, чтобы не потерять его, удалить всю папку с проектом, 
-# скачать её заново и вписать туда код из вордовского файла. Не ищу легких путей)))
-
 from models import Car, CarFullInfo, CarStatus, Model, ModelSaleStats, Sale
-
+from pydantic import BaseModel
 import os
 import datetime
 import decimal
@@ -44,18 +30,18 @@ class CarService:
         
         current_line_number = sum(1 for line in open(f'{self.root_directory_path}/cars.txt'))
         with open(f'{self.root_directory_path}/cars_index.txt', 'a', encoding='utf-8') as file: # исправил путь к файлу
-            file.write(f'{car.vin};{current_line_number}') # заменил запятую на точку с запятой
+            file.write(f'{car.vin};{current_line_number}\n') # добавил \n
 
     # Задание 2. Сохранение продаж.
     # Была ошибка No value for argument 'sales_date' in method call
     # Убираю лишний параметр из sell_car()
     def sell_car(self, sale: Sale,) -> Car:
         with open(f'{self.root_directory_path}/sales.txt', 'a', encoding = 'utf-8') as file:
-            file.write(f'{sale.sales_number};{sale.car_vin};{sale.cost};{sale.sales_date}') # sales_date стало частью аргумента sale
+            file.write(f'{sale.sales_number};{sale.car_vin};{sale.cost};{sale.sales_date}\n')
 
         current_line_number = sum(1 for line in open(f'{self.root_directory_path}/sales.txt'))
         with open(f'{self.root_directory_path}/sales_index.txt', 'a', encoding = 'utf-8') as file:
-            file.write(f'{sale.sales_number};{current_line_number}')
+            file.write(f'{sale.sales_number};{current_line_number}\n')
 
         updated_lines = []
         with open(f'{self.root_directory_path}/cars.txt', 'r', encoding='utf-8') as file: # исправил путь к файлу
@@ -75,14 +61,14 @@ class CarService:
         with open(f'{self.root_directory_path}/cars.txt', 'r', encoding='utf-8') as file:
             lines = file.readlines()
             for line in lines:
-                vin, model, price, date_start, status = line.strip().split(';')
+                vin, model, price, date_start, car_status = line.strip().split(';')
                 if status == 'available':
                     car = Car( # добавляю локальную переменную, чтобы собрать объект Car
                     vin=vin,
                     model=model,
                     price=decimal.Decimal(price),
                     date_start=datetime.datetime.fromisoformat(date_start),
-                    status=status
+                    car_status=status
             )
                     available_cars.append(car) # собираю список доступных машин из объектов Car, используя переменную car
         return available_cars
@@ -113,14 +99,16 @@ class CarService:
 
         model_id_from_file, model_name, model_brand = model_info.split(';') # беру отсюда id, имя модели и имя бренда
 
-        return CarFullInfo( # собираю объект по частям
-            vin=vin_car,
-            model_name=model_name,
-            brand=model_brand,
-            price=decimal.Decimal(price),
-            date_start=datetime.datetime.fromisoformat(date_start),
-            status=status
-        )
+        return CarFullInfo( #так как класс определён ранее, то здесь я просто создаю объекты класса
+        vin=vin_car,
+        car_model_name=model_name,
+        car_model_brand=model_brand,
+        price=decimal.Decimal(price),
+        date_start=datetime.datetime.fromisoformat(date_start),
+        status=status,
+        sales_date=None,
+        sales_cost=None
+    )
 
     def read_model_info(self, model_id: str) -> str | None:
         line_number = None
@@ -152,8 +140,10 @@ class CarService:
                     line_number = int(current_line_number)
                     break
 
-        with open(f'{self.root_directory_path}/cars.txt', 'r', encoding='utf-8') as file:
+        with open(f'{self.root_directory_path}/cars.txt', 'r', encoding='utf-8') as file: # сначала просто читаю файл
             all_lines = file.readlines()
+            
+        with open(f'{self.root_directory_path}/cars.txt', 'w', encoding='utf-8') as file: # открываю в режиме записи
             for i, line in enumerate(all_lines):
                 if i == int(line_number):
                     vin, model, price, date_start, status = line.strip().split(';')
